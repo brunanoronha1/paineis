@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Qualificação de Leads — Qual oferta direcionar? · Árvore</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --verde:       #45d0c1;
+      --verde-dark:  #218787;
+      --navy:        #002733;
+      --deeper:      #063b4b;
+      --mint:        #dfffee;
+      --mint-pale:   #eefff5;
+      --white:       #ffffff;
+      --enriq-light: #d6f7f3;
+      --hibr:        #9272dc;
+      --hibr-light:  #eeeafa;
+      --plat-light:  #e4edf0;
+      --warn-light:  #fff8e1;
+      --warn:        #f9a825;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--mint-pale); color: var(--navy); min-height: 100vh; padding-bottom: 60px; }
+
+    /* HEADER */
+    header { background: var(--navy); padding: 20px 48px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 26px; font-weight: 800; color: var(--verde); }
+    .header-right h1 { font-size: 16px; font-weight: 700; color: #fff; text-align: right; }
+    .header-right p  { font-size: 11px; color: var(--verde); text-align: right; margin-top: 2px; }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 28px 28px 0; }
+
+    /* TOOLBAR */
+    .toolbar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .btn {
+      display: flex; align-items: center; gap: 7px;
+      border: none; border-radius: 10px; padding: 10px 20px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-edit   { background: var(--navy); color: #fff; }
+    .btn-edit:hover { background: var(--deeper); }
+    .btn-edit.active { background: var(--verde); color: var(--navy); }
+    .btn-save   { background: var(--verde-dark); color: #fff; }
+    .btn-save:hover { background: var(--deeper); }
+    .btn-print  { background: #fff; color: var(--navy); border: 1.5px solid #cde8e4; }
+    .btn-print:hover { background: var(--mint); }
+    .toolbar-hint {
+      font-size: 12px; color: var(--verde-dark); font-style: italic;
+      opacity: 0; transition: opacity 0.3s; margin-left: 4px;
+    }
+    .toolbar-hint.show { opacity: 1; }
+
+    /* EDIT MODE styles */
+    body.edit-mode [contenteditable] {
+      outline: none;
+      border-radius: 4px;
+      cursor: text;
+      min-width: 20px;
+      min-height: 1em;
+    }
+    body.edit-mode [contenteditable]:hover {
+      background: rgba(69,208,193,0.15) !important;
+    }
+    body.edit-mode [contenteditable]:focus {
+      background: rgba(255,255,255,0.9) !important;
+      box-shadow: 0 0 0 2px var(--verde);
+    }
+    body:not(.edit-mode) [contenteditable] { cursor: default; }
+
+    /* EDIT MODE indicator */
+    .edit-badge {
+      display: none;
+      background: var(--verde); color: var(--navy);
+      border-radius: 99px; padding: 3px 10px;
+      font-size: 11px; font-weight: 700;
+    }
+    body.edit-mode .edit-badge { display: inline-flex; align-items: center; gap: 4px; }
+
+    /* ENTRY */
+    .entry-box {
+      background: var(--navy); color: #fff;
+      border-radius: 16px; padding: 20px 32px;
+      text-align: center; max-width: 520px;
+      margin: 0 auto;
+    }
+    .entry-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--verde); margin-bottom: 6px; }
+    .entry-q { font-size: 17px; font-weight: 700; line-height: 1.4; }
+
+    /* CONNECTORS */
+    .connector-down { display: flex; justify-content: center; height: 32px; }
+    .connector-down::before { content: ''; width: 2px; background: var(--verde-dark); height: 100%; }
+    .connector-down.fork { height: 40px; }
+
+    /* BRANCH ROW */
+    .branch-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 32px; position: relative;
+    }
+    .branch-row::before {
+      content: ''; position: absolute; top: 0;
+      left: calc(25% + 0px); right: calc(25% + 0px);
+      height: 2px; background: var(--verde-dark);
+    }
+
+    /* BRANCH */
+    .branch { display: flex; flex-direction: column; align-items: center; }
+
+    .branch-tag {
+      background: var(--verde); color: var(--navy);
+      border-radius: 99px; padding: 5px 16px;
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+
+    .context-box {
+      background: #fff; border: 2px solid var(--verde);
+      border-radius: 14px; padding: 14px 18px;
+      width: 100%; text-align: center;
+      font-size: 13px; font-weight: 600; color: var(--navy);
+      line-height: 1.4; position: relative;
+    }
+    .context-box .ctx-num {
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+      background: var(--verde); color: var(--navy); font-size: 11px; font-weight: 800;
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .context-box small { display: block; font-size: 11px; color: #8bb8b4; font-weight: 400; margin-top: 3px; }
+
+    .decision-card {
+      background: var(--deeper); color: #fff;
+      border-radius: 12px; padding: 12px 16px;
+      width: 100%; font-size: 12px; font-weight: 600;
+      line-height: 1.5; text-align: center;
+    }
+    .decision-card .dec-icon { font-size: 18px; margin-bottom: 4px; display: block; }
+    .decision-card .dec-q { font-size: 13px; font-weight: 700; }
+
+    .indicios {
+      background: var(--warn-light); border: 1px solid var(--warn);
+      border-radius: 10px; padding: 10px 14px;
+      width: 100%; font-size: 11px; color: #6b4e00; line-height: 1.6;
+    }
+    .indicios strong { color: #b07000; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 4px; }
+    .indicios ul { padding-left: 14px; }
+    .indicios li { margin-bottom: 2px; }
+
+    .answer-row { display: grid; gap: 12px; width: 100%; }
+    .answer-row.two   { grid-template-columns: 1fr 1fr; }
+    .answer-row.three { grid-template-columns: 1fr 1fr 1fr; }
+
+    .ans-branch { display: flex; flex-direction: column; align-items: center; }
+
+    .ans-label {
+      display: inline-block; border-radius: 99px; padding: 3px 12px;
+      font-size: 11px; font-weight: 700; margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .ans-label.sim      { background: var(--verde); color: var(--navy); }
+    .ans-label.nao      { background: #e0e0e0; color: #555; }
+    .ans-label.nao-ambas{ background: #f5d0c5; color: #8b2500; }
+    .ans-label.objecao  { background: #ffe0b2; color: #7b3a00; }
+
+    .offer-card {
+      border-radius: 12px; padding: 14px 16px;
+      width: 100%; text-align: center;
+      font-size: 13px; font-weight: 700; line-height: 1.4;
+    }
+    .offer-card .offer-eyebrow { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 4px; }
+    .offer-card .offer-name    { font-size: 14px; font-weight: 800; }
+    .offer-card .offer-note    { font-size: 10px; font-weight: 400; margin-top: 4px; opacity: 0.75; line-height: 1.4; }
+
+    .o-enriq       { background: var(--enriq-light); color: var(--verde-dark); border: 2px solid var(--verde); }
+    .o-enriq-maybe { background: #f0faf9; color: var(--verde-dark); border: 2px dashed var(--verde); }
+    .o-plat        { background: var(--plat-light); color: var(--navy); border: 2px solid var(--navy); }
+    .o-hibr-lista  { background: var(--hibr-light); color: #4a2a9e; border: 2px solid var(--hibr); }
+
+    .sub-decision {
+      background: var(--mint); border: 1.5px solid var(--verde-dark);
+      border-radius: 10px; padding: 10px 14px;
+      width: 100%; font-size: 12px; font-weight: 600;
+      color: var(--navy); text-align: center;
+    }
+
+    .gap-sm { height: 10px; }
+    .gap-md { height: 18px; }
+
+    /* LEGEND */
+    .legend {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      justify-content: center; margin-top: 40px;
+      padding: 20px 28px; background: #fff;
+      border-radius: 14px; box-shadow: 0 2px 8px rgba(0,39,51,0.07);
+    }
+    .legend-title { width: 100%; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--verde-dark); margin-bottom: 8px; }
+    .legend-item  { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--navy); }
+    .legend-dot   { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+
+    @media print {
+      .toolbar { display: none !important; }
+      body { background: white; }
+    }
+    @media (max-width: 800px) {
+      .branch-row { grid-template-columns: 1fr; }
+      .branch-row::before { display: none; }
+      .answer-row.two, .answer-row.three { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Árvore🌿</div>
+  <div class="header-right">
+    <h1>Qualificação de Leads — Qual oferta direcionar?</h1>
+    <p>Guia de direcionamento por perfil de escola · Leitura</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="btn btn-edit" id="btnEdit" onclick="toggleEdit()">
+      ✏️ &nbsp;Modo edição
+    </button>
+    <span class="edit-badge" id="editBadge">✏️ Editando — clique em qualquer texto para alterar</span>
+    <button class="btn btn-save" onclick="saveFile()" title="Baixa uma cópia atualizada do arquivo">
+      💾 &nbsp;Salvar cópia
+    </button>
+    <button class="btn btn-print" onclick="window.print()">
+      🖨️ &nbsp;Imprimir / PDF
+    </button>
+    <span class="toolbar-hint" id="toolbarHint">✓ Modo de edição ativado!</span>
+  </div>
+
+  <!-- PERGUNTA INICIAL -->
+  <div class="entry-box">
+    <div class="entry-label" contenteditable="false">Pergunta de entrada</div>
+    <div class="entry-q" contenteditable="true">Como a escola trabalha com acervo de livros hoje?</div>
+  </div>
+
+  <div class="connector-down fork"></div>
+
+  <!-- DUAS BRANCHES -->
+  <div class="branch-row">
+
+    <!-- BRANCH 1 -->
+    <div class="branch">
+      <div class="branch-tag" contenteditable="true">Perfil 1</div>
+
+      <div class="context-box">
+        <div class="ctx-num">1</div>
+        <span contenteditable="true">Kit de paradidáticos do sistema de ensino</span>
+        <small contenteditable="true">→ plataforma ou plataforma c/ enriquecimento de acervo</small>
+      </div>
+
+      <div class="gap-md"></div>
+
+      <div class="decision-card">
+        <span class="dec-icon">🏛️</span>
+        <div class="dec-q" contenteditable="true">Tem biblioteca relevante na escola?</div>
+      </div>
+
+      <div class="gap-sm"></div>
+
+      <div class="indicios">
+        <strong>💡 Como identificar</strong>
+        <ul>
+          <li contenteditable="true">Atualizam acervo anualmente</li>
+          <li contenteditable="true">Têm práticas que acontecem nesse espaço</li>
+          <li contenteditable="true">Têm profissional bibliotecário</li>
+        </ul>
+      </div>
+
+      <div class="gap-md"></div>
+
+      <div class="answer-row three">
+
+        <div class="ans-branch">
+          <div class="ans-label sim" contenteditable="true">Sim</div>
+          <div class="offer-card o-enriq">
+            <div class="offer-eyebrow" contenteditable="true">Indicado</div>
+            <div class="offer-name" contenteditable="true">Enriquecimento de Acervo</div>
+            <div class="offer-note" contenteditable="true">Faz muito sentido ✓</div>
+          </div>
+        </div>
+
+        <div class="ans-branch">
+          <div class="ans-label objecao" contenteditable="true">Objeção de tela?</div>
+          <div class="offer-card o-enriq-maybe">
+            <div class="offer-eyebrow" contenteditable="true">Pode fazer sentido</div>
+            <div class="offer-name" contenteditable="true">Enriquecimento de Acervo</div>
+            <div class="offer-note" contenteditable="true">Se sim → bom argumento</div>
+          </div>
+        </div>
+
+        <div class="ans-branch">
+          <div class="ans-label nao-ambas" contenteditable="true">Não para as 2</div>
+          <div class="offer-card o-plat">
+            <div class="offer-eyebrow" contenteditable="true">Direcionar</div>
+            <div class="offer-name" contenteditable="true">Plataforma</div>
+            <div class="offer-note" contenteditable="true">Sem biblioteca e sem objeção de tela</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- BRANCH 2 -->
+    <div class="branch">
+      <div class="branch-tag" contenteditable="true">Perfil 2</div>
+
+      <div class="context-box">
+        <div class="ctx-num">2</div>
+        <span contenteditable="true">Lista de adoção com compra das famílias</span>
+        <small contenteditable="true">→ plataforma, híbrido lista de adoção ou híbrido enriquecimento</small>
+      </div>
+
+      <div class="gap-md"></div>
+
+      <div class="decision-card">
+        <span class="dec-icon">🔄</span>
+        <div class="dec-q" contenteditable="true">Tem abertura para trocar os livros da lista?</div>
+      </div>
+
+      <div class="gap-sm"></div>
+
+      <div class="indicios">
+        <strong>💡 Indícios de MENOS flexibilidade</strong>
+        <ul>
+          <li contenteditable="true">Pais trocam os livros com alunos dos anos anteriores</li>
+          <li contenteditable="true">Escola de editora muito específica (ex: confessionais)</li>
+        </ul>
+      </div>
+
+      <div class="gap-md"></div>
+
+      <div class="answer-row two">
+
+        <div class="ans-branch">
+          <div class="ans-label sim" contenteditable="true">Sim</div>
+          <div class="offer-card o-hibr-lista">
+            <div class="offer-eyebrow" contenteditable="true">Direcionar</div>
+            <div class="offer-name" contenteditable="true">Híbrido Lista de Adoção</div>
+            <div class="offer-note" contenteditable="true"> </div>
+          </div>
+        </div>
+
+        <div class="ans-branch">
+          <div class="ans-label nao" contenteditable="true">Não</div>
+
+          <div class="sub-decision" contenteditable="true">Plataforma ou Híbrido Enriquecimento de Acervo</div>
+
+          <div class="gap-sm"></div>
+
+          <div class="decision-card" style="font-size:11px;padding:10px 12px">
+            <div class="dec-q" style="font-size:11px" contenteditable="true">Tem biblioteca relevante? → Sim</div>
+          </div>
+
+          <div class="gap-sm"></div>
+          <div class="offer-card o-enriq" style="font-size:11px">
+            <div class="offer-eyebrow" contenteditable="true">Indicado</div>
+            <div class="offer-name" style="font-size:12px" contenteditable="true">Enriquecimento de Acervo</div>
+            <div class="offer-note" contenteditable="true">Faz muito sentido ✓</div>
+          </div>
+
+          <div class="gap-sm"></div>
+
+          <div class="decision-card" style="font-size:11px;padding:10px 12px">
+            <div class="dec-q" style="font-size:11px" contenteditable="true">Tem objeção de tela? → Sim</div>
+          </div>
+
+          <div class="gap-sm"></div>
+          <div class="offer-card o-enriq-maybe" style="font-size:11px">
+            <div class="offer-eyebrow" contenteditable="true">Pode fazer sentido</div>
+            <div class="offer-name" style="font-size:12px" contenteditable="true">Enriquecimento de Acervo</div>
+            <div class="offer-note" contenteditable="true"> </div>
+          </div>
+
+          <div class="gap-sm"></div>
+          <div class="offer-card o-plat" style="font-size:11px;margin-top:4px">
+            <div class="offer-eyebrow" contenteditable="true">Sem os dois acima →</div>
+            <div class="offer-name" style="font-size:12px" contenteditable="true">Plataforma</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LEGENDA -->
+  <div class="legend">
+    <div class="legend-title">Legenda de ofertas</div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--verde);border:2px solid var(--verde-dark)"></div>
+      <span contenteditable="true">Enriquecimento de Acervo — biblioteca ativa ou objeção de tela</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--hibr-light);border:2px solid var(--hibr)"></div>
+      <span contenteditable="true">Híbrido Lista de Adoção — flexibilidade para trocar lista</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--plat-light);border:2px solid var(--navy)"></div>
+      <span contenteditable="true">Plataforma — sem biblioteca relevante e sem objeção de tela</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#f0faf9;border:2px dashed var(--verde)"></div>
+      <span contenteditable="true">Enriquecimento de Acervo (pode fazer sentido) — avaliar caso a caso</span>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  let editMode = false;
+
+  function toggleEdit() {
+    editMode = !editMode;
+    document.body.classList.toggle('edit-mode', editMode);
+    const btn = document.getElementById('btnEdit');
+    const hint = document.getElementById('toolbarHint');
+    btn.textContent = editMode ? '✅  Sair do modo edição' : '✏️  Modo edição';
+    btn.classList.toggle('active', editMode);
+    if (editMode) {
+      hint.textContent = '✓ Clique em qualquer texto para editar';
+      hint.classList.add('show');
+      setTimeout(() => hint.classList.remove('show'), 3000);
+    }
+  }
+
+  function saveFile() {
+    // Desativa edição temporariamente para salvar HTML limpo
+    const wasEditing = editMode;
+    if (wasEditing) document.body.classList.remove('edit-mode');
+
+    const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+    if (wasEditing) document.body.classList.add('edit-mode');
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'qualificacao_leads_oferta.html';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    const hint = document.getElementById('toolbarHint');
+    hint.textContent = '✓ Arquivo salvo na pasta de Downloads!';
+    hint.classList.add('show');
+    setTimeout(() => hint.classList.remove('show'), 3500);
+  }
+</script>
+
+</body>
+</html>
