@@ -188,9 +188,17 @@
 
 <main>
 
+  <!-- BARRA DE SINCRONIZAÇÃO -->
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;margin-top:4px;">
+    <button class="editor-toggle" style="margin-bottom:0;background:var(--verde);color:var(--navy)" onclick="fetchFromSheets()">
+      ⟳ &nbsp;Sincronizar com a planilha
+    </button>
+    <span id="sheets-status" style="font-size:13px;font-weight:500;color:#8bb8b4;"></span>
+  </div>
+
   <!-- BOTÃO EDITAR -->
-  <button class="editor-toggle" onclick="toggleEditor()" style="margin-top:4px">
-    ✏️ &nbsp;Atualizar dados do painel
+  <button class="editor-toggle" onclick="toggleEditor()" style="margin-top:0px">
+    ✏️ &nbsp;Editar dados manualmente
   </button>
 
   <!-- PAINEL DE EDIÇÃO -->
@@ -318,6 +326,7 @@
 
       <div class="editor-actions">
         <button class="btn-update" onclick="updateDashboard()">↻ &nbsp;Atualizar painel</button>
+        <button class="btn-update" onclick="saveFile()" style="background:var(--navy);color:#fff;margin-left:4px;">⬇ &nbsp;Baixar HTML atualizado</button>
         <span class="save-msg" id="saveMsg">✓ Painel atualizado com sucesso!</span>
       </div>
     </div>
@@ -605,9 +614,130 @@ function updateDashboard(){
     <td><span class="${agClass}">${agP}</span></td>`;
   body.appendChild(trAg);
 
+  saveToLocalStorage();
+
   const msg=document.getElementById('saveMsg');
   msg.classList.add('show');
   setTimeout(()=>msg.classList.remove('show'),2500);
+}
+
+// ── Google Sheets Integration ──────────────────────────────────────
+const SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSPgjGq9vzezgkFQdNKJA7a-YeWPCifsC3zQrVOUq7iZIKmVvuMysE3K8BTUNFA3plqvjKsyhKSullM/pub?gid=1033087863&single=true&output=csv';
+
+function parseCSVRow(row) {
+  const result = [];
+  let field = '', inQuote = false;
+  for (let i = 0; i < row.length; i++) {
+    if (row[i] === '"') { inQuote = !inQuote; }
+    else if (row[i] === ',' && !inQuote) { result.push(field.trim()); field = ''; }
+    else { field += row[i]; }
+  }
+  result.push(field.trim());
+  return result;
+}
+
+function parseBRL(val) {
+  if (!val || val.trim() === '') return null;
+  const clean = val.replace(/R\$\s*/g,'').replace(/\./g,'').replace(',','.').trim();
+  const n = parseFloat(clean);
+  return isNaN(n) ? null : n;
+}
+
+function parseNum(val) {
+  if (!val || val.trim() === '') return null;
+  const n = parseFloat(val.trim());
+  return isNaN(n) ? null : n;
+}
+
+function setInputVal(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = (val !== null && val !== undefined) ? val : '';
+}
+
+function showSheetsStatus(msg, color) {
+  const el = document.getElementById('sheets-status');
+  if (el) { el.textContent = msg; el.style.color = color || '#8bb8b4'; }
+}
+
+async function fetchFromSheets() {
+  showSheetsStatus('⟳ Sincronizando...', '#8bb8b4');
+  try {
+    const resp = await fetch(SHEETS_CSV_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    const rows = text.split('\n').map(parseCSVRow);
+
+    // META: linha 1 = volume contratos, linha 3 = faturamento (cols 1-12)
+    const mVol = rows[1].slice(1, 13).map(parseNum);
+    const mFat = rows[3].slice(1, 13).map(parseBRL);
+
+    // REALIZADO: linha 8 = faturamento, linha 10 = volume
+    // Usa só cols 1-8 (Jan-Ago) para evitar conflito com tabela lateral da planilha
+    const rFatRaw = rows[8].slice(1, 9).map(parseBRL);
+    const rVolRaw = rows[10].slice(1, 9).map(parseNum);
+    const rFat = [...rFatRaw, null, null, null, null];
+    const rVol = [...rVolRaw, null, null, null, null];
+
+    // Agendamentos: linha 22 — col 1 = meta acumulada, col 2 = realizado
+    const agMeta = parseNum(rows[22] && rows[22][1]);
+    const agReal = parseNum(rows[22] && rows[22][2]);
+
+    // Preenche os inputs
+    for (let i = 0; i < 12; i++) {
+      setInputVal('m_vol_' + i, mVol[i]);
+      setInputVal('m_fat_' + i, mFat[i]);
+      setInputVal('r_fat_' + i, rFat[i]);
+      setInputVal('r_vol_' + i, rVol[i]);
+    }
+    if (agMeta !== null) setInputVal('agend_meta', agMeta);
+    if (agReal !== null) setInputVal('agend_real', agReal);
+
+    showSheetsStatus('✓ Sincronizado com a planilha agora', 'var(--verde-dark)');
+    updateDashboard();
+  } catch(e) {
+    console.warn('Sheets fetch failed:', e);
+    showSheetsStatus('⚠ Não foi possível sincronizar — usando dados salvos', '#e07b54');
+    loadFromLocalStorage();
+    updateDashboard();
+  }
+}
+// ────────────────────────────────────────────────────────────────────
+
+function saveToLocalStorage(){
+  const data={};
+  ['r_fat_','r_vol_','m_fat_','m_vol_'].forEach(prefix=>{
+    for(let i=0;i<12;i++){
+      const el=document.getElementById(prefix+i);
+      if(el) data[prefix+i]=el.value;
+    }
+  });
+  ['agend_real','agend_meta'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) data[id]=el.value;
+  });
+  localStorage.setItem('painel_aquisicao_2026',JSON.stringify(data));
+}
+
+function loadFromLocalStorage(){
+  const saved=localStorage.getItem('painel_aquisicao_2026');
+  if(!saved) return;
+  const data=JSON.parse(saved);
+  Object.entries(data).forEach(([id,val])=>{
+    const el=document.getElementById(id);
+    if(el) el.value=val;
+  });
+}
+
+function saveFile(){
+  document.querySelectorAll('input[type="number"]').forEach(input=>{
+    input.setAttribute('value', input.value);
+  });
+  const html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='painel_aquisicao_leitura_2026.html';
+  a.click(); URL.revokeObjectURL(url);
 }
 
 function toggleEditor(){
@@ -629,7 +759,7 @@ function switchTab(e,name){
   });
 });
 
-updateDashboard();
+fetchFromSheets();
 </script>
 </body>
 </html>
